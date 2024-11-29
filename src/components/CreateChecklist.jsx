@@ -1,163 +1,237 @@
 import React, { useState, useEffect } from "react";
-import {Dialog,DialogTitle,DialogContent,DialogActions,Box,Typography,TextField,Button,Card,
-CardContent,Slider,Checkbox,List,ListItem,ListItemText,IconButton,} from "@mui/material";
+import {
+  Modal,
+  Box,
+  Typography,
+  Button,
+  TextField,
+  Checkbox,
+  Alert,
+  Slider,
+} from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-const CreateChecklist = ({ open, onClose, onChecklistSave, cardChecklists }) => {
-  const [checklists, setChecklists] = useState(cardChecklists || []);
+const CreateChecklist = ({ cardId, onClose }) => {
+  const [checklists, setChecklists] = useState([]);
   const [newChecklistName, setNewChecklistName] = useState("");
-  const [newCheckItem, setNewCheckItem] = useState("");
+  const [newItems, setNewItems] = useState({});
+  const [error, setError] = useState(null);
+
+  const apiKey = import.meta.env.VITE_TRELLO_API_KEY;
+  const accessToken = import.meta.env.VITE_TRELLO_ACCESS_TOKEN;
+
+  const fetchChecklists = async () => {
+    try {
+      const response = await fetch(
+        `https://api.trello.com/1/cards/${cardId}/checklists?key=${apiKey}&token=${accessToken}`
+      );
+      const data = await response.json();
+      // Ensure checklists have an items array
+      const formattedData = data.map((checklist) => ({
+        ...checklist,
+        items: checklist.checkItems || [],
+      }));
+      setChecklists(formattedData);
+    } catch (err) {
+      console.error("Error fetching checklists:", err);
+    }
+  };
 
   useEffect(() => {
-    setChecklists(cardChecklists || []);
-  }, [cardChecklists]);
+    fetchChecklists();
+  }, [cardId]);
 
-  const handleSave = () => {
-    onChecklistSave(checklists);
-    onClose();
-  };
-//when user enter name in the checklist and click add it add a new checklist with unique id, initialise the checklist with empty item array clears checklist name
-  const addChecklist = () => {
-    if (newChecklistName.trim()) {
-    setChecklists([ ...checklists,{ id: Date.now(), name: newChecklistName, items: [] },]);
-    setNewChecklistName("");
+  const handleCreateChecklist = async () => {
+    if (!newChecklistName.trim()) return;
+    try {
+      const response = await fetch(
+        `https://api.trello.com/1/checklists?idCard=${cardId}&name=${newChecklistName}&key=${apiKey}&token=${accessToken}`,
+        { method: "POST" }
+      );
+      const data = await response.json();
+      // Add the new checklist with an empty items array
+      setChecklists([...checklists, { ...data, items: [] }]);
+      setNewChecklistName("");
+    } catch (err) {
+      console.error("Error creating checklist:", err);
+      setError("Failed to create checklist.");
     }
   };
 
-  const deleteChecklist = (index) => {
-    const newChecklists = [...checklists];
-    newChecklists.splice(index, 1);
-    setChecklists(newChecklists);
-  };
-
-  const addCheckItem = (index) => {
-    if (newCheckItem.trim()) {
-      const newChecklists = [...checklists];
-      newChecklists[index].items.push({ id: Date.now(), name: newCheckItem, checked: false });
-      setChecklists(newChecklists);
-      setNewCheckItem("");
+  const handleAddItem = async (checklistId) => {
+    const itemName = newItems[checklistId]?.trim();
+    if (!itemName) return;
+    try {
+      const response = await fetch(
+        `https://api.trello.com/1/checklists/${checklistId}/checkItems?name=${itemName}&key=${apiKey}&token=${accessToken}`,
+        { method: "POST" }
+      );
+      const data = await response.json();
+      // Update the checklist with the new item
+      setChecklists((prev) =>
+        prev.map((checklist) =>
+          checklist.id === checklistId
+            ? { ...checklist, items: [...checklist.items, data] }
+            : checklist
+        )
+      );
+      setNewItems((prev) => ({ ...prev, [checklistId]: "" }));
+    } catch (err) {
+      console.error("Error adding item:", err);
     }
   };
 
-  const deleteCheckItem = (checklistIndex, itemIndex) => {
-    const newChecklists = [...checklists];
-    newChecklists[checklistIndex].items = newChecklists[checklistIndex].items.filter(
-      (_, i) => i !== itemIndex
-    );
-    setChecklists(newChecklists);
+  const toggleItemState = async (checklistId, itemId, isChecked) => {
+    const state = isChecked ? "incomplete" : "complete";
+    try {
+      await fetch(
+        `https://api.trello.com/1/cards/${cardId}/checkItem/${itemId}?state=${state}&key=${apiKey}&token=${accessToken}`,
+        { method: "PUT" }
+      );
+      setChecklists((prev) =>
+        prev.map((checklist) =>
+          checklist.id === checklistId
+            ? {
+                ...checklist,
+                items: checklist.items.map((item) =>
+                  item.id === itemId ? { ...item, state } : item
+                ),
+              }
+            : checklist
+        )
+      );
+    } catch (err) {
+      console.error("Error toggling item state:", err);
+    }
   };
 
-  const toggleCheckItem = (checklistIndex, itemIndex) => {
-    const newChecklists = [...checklists];
-    newChecklists[checklistIndex].items[itemIndex].checked =
-      !newChecklists[checklistIndex].items[itemIndex].checked;
-    setChecklists(newChecklists);
+  const deleteChecklist = async (checklistId) => {
+    try {
+      await fetch(
+        `https://api.trello.com/1/checklists/${checklistId}?key=${apiKey}&token=${accessToken}`,
+        { method: "DELETE" }
+      );
+      // Remove the checklist from the state
+      setChecklists((prev) =>
+        prev.filter((checklist) => checklist.id !== checklistId)
+      );
+    } catch (err) {
+      console.error("Error deleting checklist:", err);
+      setError("Failed to delete checklist.");
+    }
   };
 
-  const calculateProgress = (items) => {
-    const completed = items.filter((item) => item.checked).length;
-    return items.length === 0 ? 0 : (completed / items.length) * 100;
+  const deleteItem = async (checklistId, itemId) => {
+    try {
+      await fetch(
+        `https://api.trello.com/1/checklists/${checklistId}/checkItems/${itemId}?key=${apiKey}&token=${accessToken}`,
+        { method: "DELETE" }
+      );
+      // Remove the item from the checklist
+      setChecklists((prev) =>
+        prev.map((checklist) =>
+          checklist.id === checklistId
+            ? {
+                ...checklist,
+                items: checklist.items.filter((item) => item.id !== itemId),
+              }
+            : checklist
+        )
+      );
+    } catch (err) {
+      console.error("Error deleting item:", err);
+    }
+  };
+
+  const calculateCompletion = (checklist) => {
+    const total = checklist.items?.length || 0; // Ensure items exists
+    const completed =
+      checklist.items?.filter((item) => item.state === "complete").length || 0;
+    return total === 0 ? 0 : Math.round((completed / total) * 100);
   };
 
   return (
-    <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
-      <DialogTitle>Create Checklist</DialogTitle>
-      <DialogContent>
-        {/* Add Checklist */}
-        <Box>
+    <Modal open={true} onClose={onClose}>
+    <Box
+      sx={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)', // Centers the modal both vertically and horizontally
+        padding: 2,
+        width: 600,
+        backgroundColor: "white",
+        borderRadius: 2,
+        maxHeight: "80vh", // Set a max height for the modal content
+        overflowY: "auto", // Enable vertical scrolling when content overflows
+      }}
+    >
+      <Typography variant="h6">Manage Checklists</Typography>
+      {error && <Alert severity="error">{error}</Alert>}
+      <TextField
+        label="New Checklist Name"
+        value={newChecklistName}
+        onChange={(e) => setNewChecklistName(e.target.value)}
+      />
+      <Button onClick={handleCreateChecklist}>Create Checklist</Button>
+      {checklists.map((checklist) => (
+        <Box
+          key={checklist.id}
+          sx={{
+            marginBottom: 2,
+            padding: 2,
+            backgroundColor: "#f5f5f5", // Light grey background
+            borderRadius: 1, // Optional: add rounded corners to the checklist box
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Typography>{checklist.name}</Typography>
+            <Button
+              onClick={() => deleteChecklist(checklist.id)}
+              sx={{ marginLeft: 1 }}
+            >
+              <DeleteIcon />
+            </Button>
+          </Box>
+          <Slider value={calculateCompletion(checklist)} disabled />
+          {checklist.items?.map((item) => (
+            <Box key={item.id} sx={{ display: "flex", alignItems: "center" }}>
+              <Checkbox
+                checked={item.state === "complete"}
+                onChange={() =>
+                  toggleItemState(
+                    checklist.id,
+                    item.id,
+                    item.state === "complete"
+                  )
+                }
+              />
+              <Typography>{item.name}</Typography>
+              <Button
+                onClick={() => deleteItem(checklist.id, item.id)}
+                sx={{ marginLeft: 1 }}
+              >
+                <DeleteIcon />
+              </Button>
+            </Box>
+          ))}
           <TextField
-            fullWidth
-            label="Checklist Name"
-            variant="outlined"
-            value={newChecklistName}
-            onChange={(e) => setNewChecklistName(e.target.value)}
-            sx={{ mb: 2 }}/>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={addChecklist}
-            sx={{ mb: 2 }}>
-            Add Checklist
+            label="Add Item"
+            value={newItems[checklist.id] || ""}
+            onChange={(e) =>
+              setNewItems({ ...newItems, [checklist.id]: e.target.value })
+            }
+          />
+          <Button onClick={() => handleAddItem(checklist.id)}>
+            Add Item
           </Button>
         </Box>
-
-        {/* Display Checklists */}
-        {checklists.map((checklist, checklistIndex) => (
-          <Card key={checklist.id} sx={{ mb: 3, p: 2 }}>
-            <CardContent>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 2,
-                }}
-              >
-                <Typography variant="h6">{checklist.name}</Typography>
-                <IconButton
-                  color="error"
-                  onClick={() => deleteChecklist(checklistIndex)}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Box>
-
-              {/* Task Progress Slider */}
-              <Slider
-                value={calculateProgress(checklist.items)}
-                max={100}
-                valueLabelDisplay="auto"
-                sx={{ mb: 2 }} />
-
-              <List>
-                {checklist.items.map((item, itemIndex) => (
-                  <ListItem
-                    key={item.id}
-                    dense
-                    secondaryAction={
-                      <IconButton
-                        edge="end"
-                        color="error"
-                        onClick={() =>
-                          deleteCheckItem(checklistIndex, itemIndex)
-                        }>
-                        <DeleteIcon />
-                      </IconButton>
-                    }>
-                    <Checkbox
-                      checked={item.checked}
-                      onChange={() =>
-                        toggleCheckItem(checklistIndex, itemIndex)
-                      }/>
-                    <ListItemText primary={item.name} />
-                  </ListItem>
-                ))}
-              </List>
-              {/* Add Checkitem */}
-              <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
-                <TextField
-                  label="New Check Item"
-                  variant="outlined"
-                  fullWidth
-                  value={newCheckItem}
-                  onChange={(e) => setNewCheckItem(e.target.value)}
-                />
-                <Button
-                  variant="contained"
-                  color="secondary"
-                  onClick={() => addCheckItem(checklistIndex)}>
-                  Add
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        ))}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave}>Save</Button>
-      </DialogActions>
-    </Dialog>
+      ))}
+  
+      <Button onClick={onClose}>Close</Button>
+    </Box>
+  </Modal>
+  
   );
 };
 

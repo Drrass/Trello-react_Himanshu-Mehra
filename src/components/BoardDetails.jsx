@@ -1,26 +1,34 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
-import {Box, Typography,Button,CircularProgress,Paper,Card,CardContent,TextField, IconButton,} from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
 import CreateChecklist from "./CreateChecklist";
+import {
+  Box,
+  Typography,
+  Button,
+  CircularProgress,
+  Paper,
+  Card,
+  CardContent,
+  TextField,
+  IconButton,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
 const BoardDetails = () => {
-const { boardId } = useParams();
-const navigate = useNavigate();
- const [lists, setLists] = useState([]);
- const [isLoading, setIsLoading] = useState(true);
- const [error, setError] = useState(null);
-const [activeInputList, setActiveInputList] = useState(null);
-const [newCardName, setNewCardName] = useState("");
- const [isChecklistModalOpen, setIsChecklistModalOpen] = useState(false);
-const [selectedCard, setSelectedCard] = useState(null);
- const [cardChecklists, setCardChecklists] = useState({});
- const apiKey = import.meta.env.VITE_TRELLO_API_KEY;
- const accessToken = import.meta.env.VITE_TRELLO_ACCESS_TOKEN;
+  const { boardId } = useParams();
+  const navigate = useNavigate();
+  const [lists, setLists] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [activeInputList, setActiveInputList] = useState(null);
+  const [newCardName, setNewCardName] = useState("");
+  const [selectedCardId, setSelectedCardId] = useState(null);
+  const [showChecklistModal, setShowChecklistModal] = useState(false);
+  const apiKey = import.meta.env.VITE_TRELLO_API_KEY;
+  const accessToken = import.meta.env.VITE_TRELLO_ACCESS_TOKEN;
 
-
- // here i am fetching all list in the selected Board using trello api  The lists state is populated with list data, each containing an array of cards.
+  // Fetching all lists in the selected board using the Trello API
   useEffect(() => {
     const fetchLists = async () => {
       try {
@@ -49,13 +57,13 @@ const [selectedCard, setSelectedCard] = useState(null);
     fetchLists();
   }, [boardId]);
 
-
-// when Create New List Button is Clicked then user should prommpt to enter listname
+  // Create a new list
   const createList = async () => {
     const listName = prompt("Enter the name for the new list:");
-    if (!listName) return;
+    if (!listName || listName.trim() === "") return; // Ensure name is valid
 
     try {
+      setIsLoading(true);
       const response = await axios.post(
         `https://api.trello.com/1/boards/${boardId}/lists`,
         null,
@@ -68,15 +76,19 @@ const [selectedCard, setSelectedCard] = useState(null);
         }
       );
 
-      setLists([...lists, { ...response.data, cards: [] }]);
+      setLists((prevLists) => [...prevLists, { ...response.data, cards: [] }]);
+      setError(null); // Reset error on successful creation
     } catch (err) {
-      setError("Error creating list");
+      setError("Error creating list. Please check the list name or try again later.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  //when i click on the add card buttom for a specific list a text input appear for specific list a tet input appear to enter card name
+  // Create a new card in a specific list
   const createCard = async (listId) => {
     if (!newCardName.trim()) return;
+
     try {
       const response = await axios.post(
         `https://api.trello.com/1/cards`,
@@ -90,6 +102,7 @@ const [selectedCard, setSelectedCard] = useState(null);
           },
         }
       );
+
       setLists((prevLists) =>
         prevLists.map((list) =>
           list.id === listId
@@ -104,7 +117,7 @@ const [selectedCard, setSelectedCard] = useState(null);
     }
   };
 
-  // when i clicked on delete icon delete request is made to remove the card 
+  // Delete a card
   const deleteCard = async (cardId, listId) => {
     try {
       await axios.delete(`https://api.trello.com/1/cards/${cardId}`, {
@@ -126,6 +139,7 @@ const [selectedCard, setSelectedCard] = useState(null);
     }
   };
 
+  // Delete a list
   const deleteList = async (listId) => {
     try {
       await axios.put(`https://api.trello.com/1/lists/${listId}/closed`, null, {
@@ -136,7 +150,6 @@ const [selectedCard, setSelectedCard] = useState(null);
         },
       });
 
-  
       // Remove the list from the state after closing it
       setLists((prevLists) => prevLists.filter((list) => list.id !== listId));
     } catch (err) {
@@ -144,35 +157,30 @@ const [selectedCard, setSelectedCard] = useState(null);
     }
   };
 
-  // when i click on cards createchecklistModal is open the card id passed to createChecklist to manage its state
+  // Open checklist modal on card click
   const openChecklistModal = (cardId) => {
-    setSelectedCard(cardId);
-    setIsChecklistModalOpen(true);
-  };
-
-  //it update the checklist for currently updated card,checklists parameter contains the updated checklist data
-  const handleChecklistSave = (checklists) => {
-    setCardChecklists((prevChecklists) => ({
-      ...prevChecklists,
-      [selectedCard]: checklists,
-    }));
-    console.log(cardChecklists);
+    setSelectedCardId(cardId);
+    setShowChecklistModal(true);
   };
 
   return (
     <Box sx={{ p: 4 }}>
-      
       <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
-        <Button variant="outlined" onClick={() => navigate("/boards")} sx={{ mr: 2 }}>
+        <Button
+          variant="outlined"
+          onClick={() => navigate("/boards")}
+          sx={{ mr: 2 }}
+        >
           Back to Boards
-        </Button>  
+        </Button>
       </Box>
 
       <Button
         variant="contained"
         color="primary"
         onClick={createList}
-        sx={{ mb: 4 }}>
+        sx={{ mb: 4 }}
+      >
         Create New List
       </Button>
 
@@ -182,13 +190,14 @@ const [selectedCard, setSelectedCard] = useState(null);
         <Typography color="error">{error}</Typography>
       ) : (
         <Box
-        sx={{
-         display: "flex",
-         alignItems:"flex-start",
-        overflowX: "auto",
-        gap: 3,
-        p: 2,
-          }}>
+          sx={{
+            display: "flex",
+            alignItems: "flex-start",
+            overflowX: "auto",
+            gap: 3,
+            p: 2,
+          }}
+        >
           {lists.map((list) => (
             <Paper
               key={list.id}
@@ -198,13 +207,15 @@ const [selectedCard, setSelectedCard] = useState(null);
                 minHeight: 200,
                 p: 3,
                 bgcolor: "grey.100",
-              }} >
+              }}
+            >
               <Box
                 sx={{
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                }}>
+                }}
+              >
                 <Typography variant="h6">{list.name}</Typography>
                 <IconButton
                   color="error"
@@ -232,7 +243,7 @@ const [selectedCard, setSelectedCard] = useState(null);
                           flexDirection: "column",
                           justifyContent: "center",
                         }}
-                        onClick={() => openChecklistModal(card.id)}
+                        onClick={() => openChecklistModal(card.id)} // Open checklist modal on card click
                       >
                         <CardContent>{card.name}</CardContent>
                         <IconButton
@@ -271,23 +282,17 @@ const [selectedCard, setSelectedCard] = useState(null);
                   <Button
                     variant="contained"
                     color="primary"
-                    fullWidth
-                    sx={{ mt: 2 }}
                     onClick={() => createCard(list.id)}
+                    sx={{ mt: 1 }}
                   >
                     Add Card
                   </Button>
                 </Box>
               ) : (
                 <Button
-                  variant="contained"
-                  color="primary"
-                  fullWidth
+                  variant="outlined"
+                  onClick={() => setActiveInputList(list.id)}
                   sx={{ mt: 2 }}
-                  onClick={() => {
-                    setActiveInputList(list.id);
-                    setNewCardName("");
-                  }}
                 >
                   Add Card
                 </Button>
@@ -297,18 +302,14 @@ const [selectedCard, setSelectedCard] = useState(null);
         </Box>
       )}
 
-      <CreateChecklist
-      //  open is basicaly a bolean value to determine modal is open or not
-      // onChecklistSave= on clicking save parent component get final updated list of checklists
-      // cardChecklists an array containing existing checklists associated with a card
-        open={isChecklistModalOpen}   
-        onClose={() => setIsChecklistModalOpen(false)}
-        onChecklistSave={handleChecklistSave}
-        cardChecklists={cardChecklists[selectedCard] || []
-        
-        }
-      />
+      {showChecklistModal && (
+        <CreateChecklist
+          cardId={selectedCardId}
+          onClose={() => setShowChecklistModal(false)}
+        />
+      )}
     </Box>
   );
 };
+
 export default BoardDetails;
