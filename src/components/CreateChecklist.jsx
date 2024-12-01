@@ -1,14 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  Modal,
-  Box,
-  Typography,
-  Button,
-  TextField,
-  Checkbox,
-  Alert,
-  Slider,
-} from "@mui/material";
+import {Modal,Box,Typography,Button, TextField,Checkbox,Alert, Slider,} from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 
 const CreateChecklist = ({ cardId, onClose }) => {
@@ -16,7 +7,6 @@ const CreateChecklist = ({ cardId, onClose }) => {
   const [newChecklistName, setNewChecklistName] = useState("");
   const [newItems, setNewItems] = useState({});
   const [error, setError] = useState(null);
-
   const apiKey = import.meta.env.VITE_TRELLO_API_KEY;
   const accessToken = import.meta.env.VITE_TRELLO_ACCESS_TOKEN;
 
@@ -51,6 +41,7 @@ const CreateChecklist = ({ cardId, onClose }) => {
       const data = await response.json();
       // Add the new checklist with an empty items array
       setChecklists([...checklists, { ...data, items: [] }]);
+      console.log(checklists);
       setNewChecklistName("");
     } catch (err) {
       console.error("Error creating checklist:", err);
@@ -152,44 +143,21 @@ const CreateChecklist = ({ cardId, onClose }) => {
 
   return (
     <Modal open={true} onClose={onClose}>
-    <Box
-      sx={{
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)', // Centers the modal both vertically and horizontally
-        padding: 2,
-        width: 600,
-        backgroundColor: "white",
-        borderRadius: 2,
-        maxHeight: "80vh", // Set a max height for the modal content
-        overflowY: "auto", // Enable vertical scrolling when content overflows
-      }}
-    >
+    <Box  sx={{  position: 'absolute',  top: '50%',  left: '50%',  transform: 'translate(-50%, -50%)',  padding: 2,
+        width: 600,  backgroundColor: "white",  borderRadius: 2,  maxHeight: "80vh",  overflowY: "auto",   }}  >
+
       <Typography variant="h6">Manage Checklists</Typography>
+      
       {error && <Alert severity="error">{error}</Alert>}
-      <TextField
-        label="New Checklist Name"
-        value={newChecklistName}
-        onChange={(e) => setNewChecklistName(e.target.value)}
-      />
+      <TextField  label="New Checklist Name"  value={newChecklistName}
+        onChange={(e) => setNewChecklistName(e.target.value)}  />
       <Button onClick={handleCreateChecklist}>Create Checklist</Button>
+
       {checklists.map((checklist) => (
-        <Box
-          key={checklist.id}
-          sx={{
-            marginBottom: 2,
-            padding: 2,
-            backgroundColor: "#f5f5f5", // Light grey background
-            borderRadius: 1, // Optional: add rounded corners to the checklist box
-          }}
-        >
+        <Box  key={checklist.id}  sx={{ marginBottom: 2,  padding: 2,  backgroundColor: "#f5f5f5",  borderRadius: 1,  }}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             <Typography>{checklist.name}</Typography>
-            <Button
-              onClick={() => deleteChecklist(checklist.id)}
-              sx={{ marginLeft: 1 }}
-            >
+            <Button  onClick={() => deleteChecklist(checklist.id)}  sx={{ marginLeft: 1 }}  >
               <DeleteIcon />
             </Button>
           </Box>

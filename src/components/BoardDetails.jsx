@@ -2,17 +2,7 @@ import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 import CreateChecklist from "./CreateChecklist";
-import {
-  Box,
-  Typography,
-  Button,
-  CircularProgress,
-  Paper,
-  Card,
-  CardContent,
-  TextField,
-  IconButton,
-} from "@mui/material";
+import {Box,Typography, Button,CircularProgress,Paper,Card,CardContent,TextField,IconButton,} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 const BoardDetails = () => {
@@ -28,7 +18,7 @@ const BoardDetails = () => {
   const apiKey = import.meta.env.VITE_TRELLO_API_KEY;
   const accessToken = import.meta.env.VITE_TRELLO_ACCESS_TOKEN;
 
-  // Fetching all lists in the selected board using the Trello API
+  // fetching all lists in the selected board using the Trello API
   useEffect(() => {
     const fetchLists = async () => {
       try {
@@ -61,7 +51,6 @@ const BoardDetails = () => {
   const createList = async () => {
     const listName = prompt("Enter the name for the new list:");
     if (!listName || listName.trim() === "") return; // Ensure name is valid
-
     try {
       setIsLoading(true);
       const response = await axios.post(
@@ -75,8 +64,8 @@ const BoardDetails = () => {
           },
         }
       );
-
       setLists((prevLists) => [...prevLists, { ...response.data, cards: [] }]);
+      console.log(lists)
       setError(null); // Reset error on successful creation
     } catch (err) {
       setError("Error creating list. Please check the list name or try again later.");
@@ -88,7 +77,6 @@ const BoardDetails = () => {
   // Create a new card in a specific list
   const createCard = async (listId) => {
     if (!newCardName.trim()) return;
-
     try {
       const response = await axios.post(
         `https://api.trello.com/1/cards`,
@@ -102,14 +90,10 @@ const BoardDetails = () => {
           },
         }
       );
-
-      setLists((prevLists) =>
-        prevLists.map((list) =>
-          list.id === listId
-            ? { ...list, cards: [...list.cards, response.data] }
-            : list
-        )
-      );
+      setLists((prevLists) =>  prevLists.map((list) =>  list.id === listId  ? 
+      { ...list, cards: [...list.cards, response.data] }  : list)  );
+      console.log(lists);
+      
       setActiveInputList(null);
       setNewCardName("");
     } catch (err) {
@@ -127,13 +111,8 @@ const BoardDetails = () => {
         },
       });
 
-      setLists((prevLists) =>
-        prevLists.map((list) =>
-          list.id === listId
-            ? { ...list, cards: list.cards.filter((card) => card.id !== cardId) }
-            : list
-        )
-      );
+      setLists((prevLists) =>  prevLists.map((list) =>  list.id === listId
+      ? { ...list, cards: list.cards.filter((card) => card.id !== cardId) }  : list )  );
     } catch (err) {
       setError("Error deleting card");
     }
@@ -151,6 +130,7 @@ const BoardDetails = () => {
       });
 
       // Remove the list from the state after closing it
+      console.log(listId);
       setLists((prevLists) => prevLists.filter((list) => list.id !== listId));
     } catch (err) {
       setError("Error deleting list");
@@ -159,6 +139,8 @@ const BoardDetails = () => {
 
   // Open checklist modal on card click
   const openChecklistModal = (cardId) => {
+    console.log(lists)
+    console.log(cardId);
     setSelectedCardId(cardId);
     setShowChecklistModal(true);
   };
@@ -166,11 +148,7 @@ const BoardDetails = () => {
   return (
     <Box sx={{ p: 4 }}>
       <Box sx={{ display: "flex", alignItems: "center", mb: 4 }}>
-        <Button
-          variant="outlined"
-          onClick={() => navigate("/boards")}
-          sx={{ mr: 2 }}
-        >
+        <Button  variant="outlined"  onClick={() => navigate("/boards")}  sx={{ mr: 2 }}>
           Back to Boards
         </Button>
       </Box>
@@ -179,8 +157,7 @@ const BoardDetails = () => {
         variant="contained"
         color="primary"
         onClick={createList}
-        sx={{ mb: 4 }}
-      >
+        sx={{ mb: 4 }}>
         Create New List
       </Button>
 
@@ -189,75 +166,35 @@ const BoardDetails = () => {
       ) : error ? (
         <Typography color="error">{error}</Typography>
       ) : (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "flex-start",
-            overflowX: "auto",
-            gap: 3,
-            p: 2,
-          }}
-        >
+        <Box sx={{ display: "flex",alignItems: "flex-start", overflowX: "auto",  gap: 3,  p: 2,}}>
+
           {lists.map((list) => (
-            <Paper
-              key={list.id}
-              elevation={3}
-              sx={{
-                width: 300,
-                minHeight: 200,
-                p: 3,
-                bgcolor: "grey.100",
-              }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
+
+            <Paper key={list.id}  elevation={3} sx={{  width: 300,  minHeight: 200,  p: 3,  bgcolor: "grey.100",  }}>
+
+              <Box sx={{ display: "flex",justifyContent: "space-between",alignItems: "center",}}>
                 <Typography variant="h6">{list.name}</Typography>
-                <IconButton
-                  color="error"
-                  size="small"
-                  onClick={() => deleteList(list.id)}
-                >
+                <IconButton  color="error" size="small"
+                  onClick={() => deleteList(list.id)}>
                   <CloseIcon fontSize="small" />
                 </IconButton>
               </Box>
 
               <Box sx={{ mt: 2 }}>
                 {list.cards.length > 0 ? (
+
                   <Box sx={{ display: "flex", flexDirection: "column" }}>
                     {list.cards.map((card) => (
-                      <Card
-                        key={card.id}
-                        variant="outlined"
-                        sx={{
-                          position: "relative",
-                          width: 250,
-                          height: 30,
-                          mb: 2,
-                          p: 1,
-                          display: "flex",
-                          flexDirection: "column",
-                          justifyContent: "center",
-                        }}
-                        onClick={() => openChecklistModal(card.id)} // Open checklist modal on card click
-                      >
+
+                      <Card key={card.id}  variant="outlined"
+                        sx={{  position: "relative",  width: 250,  height: 30,  mb: 2,  p: 1,  display: "flex",  flexDirection: "column",  justifyContent: "center",  }}
+                        onClick={() => openChecklistModal(card.id)}  >
+
                         <CardContent>{card.name}</CardContent>
-                        <IconButton
-                          color="error"
-                          size="small"
-                          sx={{
-                            position: "absolute",
-                            right: 4,
-                          }}
+                        <IconButton  color="error"  size="small"  sx={{  position: "absolute", right: 4,}}
                           onClick={(e) => {
                             e.stopPropagation();
-                            deleteCard(card.id, list.id);
-                          }}
-                        >
+                            deleteCard(card.id, list.id);  }}  >
                           <CloseIcon fontSize="small" />
                         </IconButton>
                       </Card>
@@ -272,28 +209,16 @@ const BoardDetails = () => {
 
               {activeInputList === list.id ? (
                 <Box sx={{ mt: 2 }}>
-                  <TextField
-                    fullWidth
-                    label="Enter card name"
-                    variant="outlined"
-                    value={newCardName}
-                    onChange={(e) => setNewCardName(e.target.value)}
-                  />
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={() => createCard(list.id)}
-                    sx={{ mt: 1 }}
-                  >
+                  <TextField fullWidth  label="Enter card name"  variant="outlined" value={newCardName}
+                    onChange={(e) => setNewCardName(e.target.value)}  />
+                  <Button  variant="contained"  color="primary"   sx={{ mt: 1 }}
+                    onClick={() => createCard(list.id)}>
                     Add Card
                   </Button>
                 </Box>
               ) : (
-                <Button
-                  variant="outlined"
-                  onClick={() => setActiveInputList(list.id)}
-                  sx={{ mt: 2 }}
-                >
+                <Button  variant="outlined"
+                  onClick={() => setActiveInputList(list.id)}  sx={{ mt: 2 }}  >
                   Add Card
                 </Button>
               )}
@@ -301,13 +226,10 @@ const BoardDetails = () => {
           ))}
         </Box>
       )}
-
       {showChecklistModal && (
         <CreateChecklist
           cardId={selectedCardId}
-          onClose={() => setShowChecklistModal(false)}
-        />
-      )}
+          onClose={() => setShowChecklistModal(false)}  />  )}
     </Box>
   );
 };
