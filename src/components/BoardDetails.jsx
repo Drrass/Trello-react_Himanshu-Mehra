@@ -66,7 +66,7 @@ const BoardDetails = () => {
       );
       setLists((prevLists) => [...prevLists, { ...response.data, cards: [] }]);
       console.log(lists)
-      setError(null); // Reset error on successful creation
+      setError(null); 
     } catch (err) {
       setError("Error creating list. Please check the list name or try again later.");
     } finally {
