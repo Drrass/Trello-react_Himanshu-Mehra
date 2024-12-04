@@ -1,11 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
 
-// API credentials from environment variables
 const apiKey = import.meta.env.VITE_TRELLO_API_KEY;
 const accessToken = import.meta.env.VITE_TRELLO_ACCESS_TOKEN;
 
-// Async thunk to fetch boards
 export const fetchBoards = createAsyncThunk('boards/fetchBoards', async (_, { rejectWithValue }) => {
   try {
     const response = await axios.get(
