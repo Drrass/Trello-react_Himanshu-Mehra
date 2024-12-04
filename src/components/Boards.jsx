@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { fetchBoards, createBoard } from '../redux/slices/boardsSlice';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Link } from 'react-router-dom';
 import {
   Typography,
@@ -15,22 +14,49 @@ import {
 } from '@mui/material';
 
 const Boards = () => {
-  const dispatch = useDispatch();
-  const { boards, isLoading, error } = useSelector((state) => state.boards);
-
+  const [boards, setBoards] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
+  const apiKey = import.meta.env.VITE_TRELLO_API_KEY;
+  const accessToken = import.meta.env.VITE_TRELLO_ACCESS_TOKEN;
 
-  // Fetch boards when component mounts
   useEffect(() => {
-    dispatch(fetchBoards());
-  }, [dispatch]);
+    const fetchBoards = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axios.get(
+          `https://api.trello.com/1/members/me/boards?key=${apiKey}&token=${accessToken}`
+        );
+        setBoards(response.data);
+      } catch (err) {
+        setError('Error fetching boards');
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const handleCreateBoard = () => {
+    fetchBoards();
+  }, [apiKey, accessToken]);
+
+  const handleCreateBoard = async () => {
     if (!newBoardName.trim()) return;
-    dispatch(createBoard(newBoardName)); // Dispatch createBoard action
-    setNewBoardName('');
-    setOpenCreateDialog(false);
+
+    try {
+      const response = await axios.post(
+        `https://api.trello.com/1/boards/?key=${apiKey}&token=${accessToken}`,
+        {
+          name: newBoardName,
+        }
+      );
+
+      setBoards([response.data, ...boards]); // Add the new board to the top of the list
+      setNewBoardName('');
+      setOpenCreateDialog(false);
+    } catch (err) {
+      setError('Error creating board');
+    }
   };
 
   const openDialog = () => setOpenCreateDialog(true);
@@ -40,10 +66,10 @@ const Boards = () => {
   };
 
   return (
-    <Box p={4} display="flex" flexDirection="column" alignItems="center">
-      <Typography variant="h4" gutterBottom textAlign="center">
-        Your Boards
-      </Typography>
+     <Box p={4} display="flex" flexDirection="column" alignItems="center">
+    <Typography variant="h4" gutterBottom textAlign="center">
+      Your Boards
+    </Typography>
       {isLoading ? (
         <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
           <CircularProgress />
@@ -94,9 +120,9 @@ const Boards = () => {
                 justifyContent: 'center',
                 alignItems: 'center',
                 textDecoration: 'none',
-                color: board.prefs?.backgroundImage ? 'white' : 'black',
-                backgroundColor: board.prefs?.backgroundColor || '#e2e8f0',
-                backgroundImage: board.prefs?.backgroundImage
+                color: board.prefs.backgroundImage ? 'white' : 'black',
+                backgroundColor: board.prefs.backgroundColor || '#e2e8f0',
+                backgroundImage: board.prefs.backgroundImage
                   ? `url(${board.prefs.backgroundImage})`
                   : 'none',
                 backgroundSize: 'cover',
@@ -115,7 +141,7 @@ const Boards = () => {
                 sx={{
                   textAlign: 'center',
                   padding: 1,
-                  backgroundColor: board.prefs?.backgroundImage ? 'rgba(0,0,0,0.6)' : 'transparent',
+                  backgroundColor: board.prefs.backgroundImage ? 'rgba(0,0,0,0.6)' : 'transparent',
                   borderRadius: 1,
                 }}
               >
