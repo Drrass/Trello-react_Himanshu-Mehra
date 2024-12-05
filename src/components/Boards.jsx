@@ -1,62 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchBoards, createBoard } from '../redux/slices/boardsSlice';
 import { Link } from 'react-router-dom';
-import {
-  Typography,
-  CircularProgress,
-  Box,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  TextField,
-} from '@mui/material';
+import { Typography, CircularProgress, Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, TextField } from '@mui/material';
 
 const Boards = () => {
-  const [boards, setBoards] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const dispatch = useDispatch();
+  const { boards, isLoading, error } = useSelector((state) => state.boards);
+
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
-  const apiKey = import.meta.env.VITE_TRELLO_API_KEY;
-  const accessToken = import.meta.env.VITE_TRELLO_ACCESS_TOKEN;
 
+  // Fetch boards on mount
   useEffect(() => {
-    const fetchBoards = async () => {
-      try {
-        setIsLoading(true);
-        const response = await axios.get(
-          `https://api.trello.com/1/members/me/boards?key=${apiKey}&token=${accessToken}`
-        );
-        setBoards(response.data);
-      } catch (err) {
-        setError('Error fetching boards');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    dispatch(fetchBoards());
+  }, [dispatch]);
 
-    fetchBoards();
-  }, [apiKey, accessToken]);
-
-  const handleCreateBoard = async () => {
+  const handleCreateBoard = () => {
     if (!newBoardName.trim()) return;
-
-    try {
-      const response = await axios.post(
-        `https://api.trello.com/1/boards/?key=${apiKey}&token=${accessToken}`,
-        {
-          name: newBoardName,
-        }
-      );
-
-      setBoards([response.data, ...boards]); // Add the new board to the top of the list
-      setNewBoardName('');
-      setOpenCreateDialog(false);
-    } catch (err) {
-      setError('Error creating board');
-    }
+    dispatch(createBoard(newBoardName));
+    setNewBoardName('');
+    setOpenCreateDialog(false);
   };
 
   const openDialog = () => setOpenCreateDialog(true);
@@ -66,24 +30,20 @@ const Boards = () => {
   };
 
   return (
-     <Box p={4} display="flex" flexDirection="column" alignItems="center">
-    <Typography variant="h4" gutterBottom textAlign="center">
-      Your Boards
-    </Typography>
+    <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <Typography variant="h4" sx={{ mb: 2, textAlign: 'center' }}>
+        Your Boards
+      </Typography>
+
       {isLoading ? (
-        <Box display="flex" justifyContent="center" alignItems="center" height="50vh">
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
           <CircularProgress />
         </Box>
       ) : error ? (
-        <Typography color="error">{error}</Typography>
+        <Typography sx={{ color: 'error.main' }}>{error}</Typography>
       ) : (
-        <Box
-          display="flex"
-          flexWrap="wrap"
-          justifyContent="center"
-          gap={2}
-        >
-          {/* "Create Board" Placeholder */}
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 2 }}>
+          {/* Add Board Button */}
           <Box
             onClick={openDialog}
             sx={{
@@ -97,9 +57,7 @@ const Boards = () => {
               boxShadow: 3,
               cursor: 'pointer',
               transition: 'transform 0.2s',
-              '&:hover': {
-                transform: 'scale(1.05)',
-              },
+              '&:hover': { transform: 'scale(1.05)' },
             }}
           >
             <Typography variant="h6" component="h3">
@@ -107,7 +65,6 @@ const Boards = () => {
             </Typography>
           </Box>
 
-          {/* Render Boards */}
           {boards.map((board) => (
             <Box
               key={board.id}
@@ -120,9 +77,9 @@ const Boards = () => {
                 justifyContent: 'center',
                 alignItems: 'center',
                 textDecoration: 'none',
-                color: board.prefs.backgroundImage ? 'white' : 'black',
-                backgroundColor: board.prefs.backgroundColor || '#e2e8f0',
-                backgroundImage: board.prefs.backgroundImage
+                color: board.prefs?.backgroundImage ? 'white' : 'black',
+                backgroundColor: board.prefs?.backgroundColor || '#e2e8f0',
+                backgroundImage: board.prefs?.backgroundImage
                   ? `url(${board.prefs.backgroundImage})`
                   : 'none',
                 backgroundSize: 'cover',
@@ -130,21 +87,15 @@ const Boards = () => {
                 borderRadius: 2,
                 boxShadow: 3,
                 transition: 'transform 0.2s',
-                '&:hover': {
-                  transform: 'scale(1.05)',
-                },
-              }}
-            >
+                '&:hover': { transform: 'scale(1.05)' }, }} >
               <Typography
                 variant="h6"
                 component="h3"
                 sx={{
                   textAlign: 'center',
-                  padding: 1,
-                  backgroundColor: board.prefs.backgroundImage ? 'rgba(0,0,0,0.6)' : 'transparent',
-                  borderRadius: 1,
-                }}
-              >
+                  p: 1,
+                  backgroundColor: board.prefs?.backgroundImage ? 'rgba(0,0,0,0.6)' : 'transparent',
+                  borderRadius: 1,}}>
                 {board.name}
               </Typography>
             </Box>
@@ -152,7 +103,6 @@ const Boards = () => {
         </Box>
       )}
 
-      {/* Create Board Dialog */}
       <Dialog open={openCreateDialog} onClose={closeDialog}>
         <DialogTitle>Create New Board</DialogTitle>
         <DialogContent>
@@ -161,16 +111,12 @@ const Boards = () => {
             fullWidth
             value={newBoardName}
             onChange={(e) => setNewBoardName(e.target.value)}
+            sx={{ mb: 2 }}
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDialog}>Cancel</Button>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleCreateBoard}
-            disabled={!newBoardName.trim()}
-          >
+          <Button variant="contained" color="primary" onClick={handleCreateBoard} disabled={!newBoardName.trim()}>
             Create
           </Button>
         </DialogActions>

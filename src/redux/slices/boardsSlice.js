@@ -15,10 +15,8 @@ export const fetchBoards = createAsyncThunk('boards/fetchBoards', async (_, { re
   }
 });
 
-// Async thunk to create a new board
 export const createBoard = createAsyncThunk(
-  'boards/createBoard',
-  async (boardName, { rejectWithValue }) => {
+  'boards/createBoard',  async (boardName, { rejectWithValue }) => {
     try {
       const response = await axios.post(
         `https://api.trello.com/1/boards/?key=${apiKey}&token=${accessToken}`,
@@ -30,6 +28,8 @@ export const createBoard = createAsyncThunk(
     }
   }
 );
+
+
 
 const boardsSlice = createSlice({
   name: 'boards',
