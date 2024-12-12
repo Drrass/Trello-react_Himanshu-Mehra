@@ -1,29 +1,21 @@
 import React, { useState, useEffect } from "react";
-import axios from "axios";
 import { Modal, Box, Typography, Button, TextField, Checkbox, Alert, Slider } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
+import trelloApi from '../api/trelloApi';
 
 const CreateChecklist = ({ cardId, onClose }) => {
   const [checklists, setChecklists] = useState([]);
   const [newChecklistName, setNewChecklistName] = useState("");
   const [newItems, setNewItems] = useState({});
   const [error, setError] = useState(null);
-  const apiKey = import.meta.env.VITE_TRELLO_API_KEY;
-  const accessToken = import.meta.env.VITE_TRELLO_ACCESS_TOKEN;
 
   const fetchChecklists = async () => {
     try {
-      const response = await axios.get(
-        `https://api.trello.com/1/cards/${cardId}/checklists`,
-        { params: { key: apiKey, token: accessToken } }
-      );
-      const formattedData = response.data.map((checklist) => ({
-        ...checklist,
-        items: checklist.checkItems || [],
-      }));
-      setChecklists(formattedData);
+      const data = await trelloApi.fetchChecklists(cardId);
+      setChecklists(data);
     } catch (err) {
-      console.error("Error fetching checklists:", err);
+      console.error(err);
+      setError("Failed to fetch checklists.");
     }
   };
 
@@ -34,17 +26,11 @@ const CreateChecklist = ({ cardId, onClose }) => {
   const handleCreateChecklist = async () => {
     if (!newChecklistName.trim()) return;
     try {
-      const response = await axios.post(
-        `https://api.trello.com/1/checklists`,
-        null,
-        {
-          params: { idCard: cardId, name: newChecklistName, key: apiKey, token: accessToken },
-        }
-      );
-      setChecklists([...checklists, { ...response.data, items: [] }]);
+      const newChecklist = await trelloApi.createChecklist(cardId, newChecklistName);
+      setChecklists([...checklists, newChecklist]);
       setNewChecklistName("");
     } catch (err) {
-      console.error("Error creating checklist:", err);
+      console.error(err);
       setError("Failed to create checklist.");
     }
   };
@@ -53,36 +39,24 @@ const CreateChecklist = ({ cardId, onClose }) => {
     const itemName = newItems[checklistId]?.trim();
     if (!itemName) return;
     try {
-      const response = await axios.post(
-        `https://api.trello.com/1/checklists/${checklistId}/checkItems`,
-        null,
-        {
-          params: { name: itemName, key: apiKey, token: accessToken },
-        }
-      );
+      const newItem = await trelloApi.addItem(checklistId, itemName);
       setChecklists((prev) =>
         prev.map((checklist) =>
           checklist.id === checklistId
-            ? { ...checklist, items: [...checklist.items, response.data] }
+            ? { ...checklist, items: [...checklist.items, newItem] }
             : checklist
         )
       );
       setNewItems((prev) => ({ ...prev, [checklistId]: "" }));
     } catch (err) {
-      console.error("Error adding item:", err);
+      console.error(err);
     }
   };
 
   const toggleItemState = async (checklistId, itemId, isChecked) => {
     const state = isChecked ? "incomplete" : "complete";
     try {
-      await axios.put(
-        `https://api.trello.com/1/cards/${cardId}/checkItem/${itemId}`,
-        null,
-        {
-          params: { state, key: apiKey, token: accessToken },
-        }
-      );
+      await trelloApi.toggleItemState(cardId, itemId, state);
       setChecklists((prev) =>
         prev.map((checklist) =>
           checklist.id === checklistId
@@ -96,35 +70,23 @@ const CreateChecklist = ({ cardId, onClose }) => {
         )
       );
     } catch (err) {
-      console.error("Error toggling item state:", err);
+      console.error(err);
     }
   };
 
   const deleteChecklist = async (checklistId) => {
     try {
-      await axios.delete(
-        `https://api.trello.com/1/checklists/${checklistId}`,
-        {
-          params: { key: apiKey, token: accessToken },
-        }
-      );
-      setChecklists((prev) =>
-        prev.filter((checklist) => checklist.id !== checklistId)
-      );
+      await trelloApi.deleteChecklist(checklistId);
+      setChecklists((prev) => prev.filter((checklist) => checklist.id !== checklistId));
     } catch (err) {
-      console.error("Error deleting checklist:", err);
+      console.error(err);
       setError("Failed to delete checklist.");
     }
   };
 
   const deleteItem = async (checklistId, itemId) => {
     try {
-      await axios.delete(
-        `https://api.trello.com/1/checklists/${checklistId}/checkItems/${itemId}`,
-        {
-          params: { key: apiKey, token: accessToken },
-        }
-      );
+      await trelloApi.deleteItem(checklistId, itemId);
       setChecklists((prev) =>
         prev.map((checklist) =>
           checklist.id === checklistId
@@ -136,7 +98,7 @@ const CreateChecklist = ({ cardId, onClose }) => {
         )
       );
     } catch (err) {
-      console.error("Error deleting item:", err);
+      console.error(err);
     }
   };
 
@@ -149,78 +111,28 @@ const CreateChecklist = ({ cardId, onClose }) => {
 
   return (
     <Modal open={true} onClose={onClose}>
-      <Box
-        sx={{
-          position: "absolute",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          padding: 2,
-          width: 600,
-          backgroundColor: "white",
-          borderRadius: 2,
-          maxHeight: "80vh",
-          overflowY: "auto",
-        }}
-      >
+      <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", padding: 2, width: 600, backgroundColor: "white", borderRadius: 2, maxHeight: "80vh", overflowY: "auto" }}>
         <Typography variant="h6">Manage Checklists</Typography>
 
         {error && <Alert severity="error">{error}</Alert>}
-        <TextField
-          label="New Checklist Name"
-          value={newChecklistName}
-          onChange={(e) => setNewChecklistName(e.target.value)}
-        />
+        <TextField label="New Checklist Name" value={newChecklistName} onChange={(e) => setNewChecklistName(e.target.value)} />
         <Button onClick={handleCreateChecklist}>Create Checklist</Button>
 
         {checklists.map((checklist) => (
-          <Box
-            key={checklist.id}
-            sx={{
-              marginBottom: 2,
-              padding: 2,
-              backgroundColor: "#f5f5f5",
-              borderRadius: 1,
-            }}
-          >
+          <Box key={checklist.id} sx={{ marginBottom: 2, padding: 2, backgroundColor: "#f5f5f5", borderRadius: 1 }}>
             <Box sx={{ display: "flex", alignItems: "center" }}>
               <Typography>{checklist.name}</Typography>
-              <Button
-                onClick={() => deleteChecklist(checklist.id)}
-                sx={{ marginLeft: 1 }}
-              >
-                <DeleteIcon />
-              </Button>
+              <Button onClick={() => deleteChecklist(checklist.id)} sx={{ marginLeft: 1 }}><DeleteIcon /></Button>
             </Box>
             <Slider value={calculateCompletion(checklist)} disabled />
             {checklist.items?.map((item) => (
               <Box key={item.id} sx={{ display: "flex", alignItems: "center" }}>
-                <Checkbox
-                  checked={item.state === "complete"}
-                  onChange={() =>
-                    toggleItemState(
-                      checklist.id,
-                      item.id,
-                      item.state === "complete"
-                    )
-                  }
-                />
+                <Checkbox checked={item.state === "complete"} onChange={() => toggleItemState(checklist.id, item.id, item.state === "complete")} />
                 <Typography>{item.name}</Typography>
-                <Button
-                  onClick={() => deleteItem(checklist.id, item.id)}
-                  sx={{ marginLeft: 1 }}
-                >
-                  <DeleteIcon />
-                </Button>
+                <Button onClick={() => deleteItem(checklist.id, item.id)} sx={{ marginLeft: 1 }}><DeleteIcon /></Button>
               </Box>
             ))}
-            <TextField
-              label="Add Item"
-              value={newItems[checklist.id] || ""}
-              onChange={(e) =>
-                setNewItems({ ...newItems, [checklist.id]: e.target.value })
-              }
-            />
+            <TextField label="Add Item" value={newItems[checklist.id] || ""} onChange={(e) => setNewItems({ ...newItems, [checklist.id]: e.target.value })} />
             <Button onClick={() => handleAddItem(checklist.id)}>Add Item</Button>
           </Box>
         ))}
