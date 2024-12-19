@@ -4,7 +4,7 @@ A Trello clone built using React, Material UI, and the official Trello API. This
 
 ## 🚀 Deployment
 
-Access the live project at: [Trello Clone Deployment](https://trello-react-himanshu-mehra-io1y.vercel.app/boards)
+Access the live project at: [Trello Clone Deployment](https://trello-react-himanshu-mehra-io1y.vercel.app)
 
 ---
 
